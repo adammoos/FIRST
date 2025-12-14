@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stress Constellations</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(180deg, #0a0e27 0%, #1a1047 50%, #2d1b4e 100%);
+            color: #e8e9f3;
+            overflow-x: hidden;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        header { text-align: center; padding: 30px; margin-bottom: 30px; }
+        h1 {
+            font-size: 2.5em;
+            background: linear-gradient(135deg, #a8b2ff 0%, #e8c4ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+        .tagline { color: #b4b8d4; font-size: 1.1em; }
+        .main-grid { display: grid; grid-template-columns: 320px 1fr; gap: 20px; }
+        .sidebar {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 25px;
+            backdrop-filter: blur(10px);
+        }
+        .mood-picker { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 20px 0; }
+        .mood-btn {
+            font-size: 3em;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 3px solid transparent;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+            user-select: none;
+            outline: none;
+        }
+        .mood-btn:focus { outline: none; }
+        .mood-btn:hover { transform: scale(1.1); background: rgba(255, 255, 255, 0.1); }
+        .mood-btn.active { border-color: #a8b2ff; background: rgba(168, 178, 255, 0.2); transform: scale(1.05); }
+        .slider-container { margin: 30px 0; }
+        .slider {
+            width: 100%;
+            height: 8px;
+            border-radius: 5px;
+            background: linear-gradient(to right, #00d2d3, #ffa07a, #ff4757);
+            outline: none;
+            -webkit-appearance: none;
+        }
+        .slider:focus { outline: none; }
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: white;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+        .slider::-webkit-slider-thumb:focus { outline: none; }
+        .slider::-moz-range-thumb {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: white;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+        .slider::-moz-range-thumb:focus { outline: none; }
+        .stress-display { text-align: center; margin-top: 15px; }
+        .stress-emoji { font-size: 3em; animation: bounce 0.5s; }
+        @keyframes bounce { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.2); } }
+        .stress-value { font-size: 2em; color: #a8b2ff; font-weight: bold; margin-top: 10px; }
+        button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #6b73ff 0%, #8e54e9 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1.1em;
+            font-weight: 600;
+            margin-top: 20px;
+            transition: transform 0.2s;
+            outline: none;
+        }
+        button:focus { outline: none; }
+        button:hover { transform: translateY(-2px); }
+        .canvas-area { background: rgba(0, 0, 0, 0.2); border-radius: 15px; padding: 20px; position: relative; }
+        canvas { width: 100%; height: 500px; border-radius: 10px; cursor: crosshair; }
+        canvas.hover { cursor: pointer; }
+        .tooltip {
+            position: absolute;
+            background: rgba(20, 20, 40, 0.95);
+            padding: 15px;
+            border-radius: 10px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+            border: 1px solid rgba(168, 178, 255, 0.3);
+            z-index: 1000;
+        }
+        .tooltip.show { opacity: 1; }
+        .stats { display: flex; gap: 15px; margin-bottom: 20px; }
+        .stat-card { flex: 1; background: rgba(255, 255, 255, 0.05); padding: 20px; border-radius: 10px; text-align: center; }
+        .stat-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            background: linear-gradient(135deg, #a8b2ff 0%, #e8c4ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .stat-label { color: #b4b8d4; margin-top: 5px; }
+        .achievement {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+            color: #1a1047;
+            padding: 20px 30px;
+            border-radius: 15px;
+            font-size: 1.2em;
+            font-weight: 600;
+            display: none;
+            z-index: 3000;
+            animation: slideIn 0.5s;
+        }
+        .achievement.show { display: block; }
+        @keyframes slideIn { from { transform: translateX(400px); } to { transform: translateX(0); } }
+        .particle {
+            position: absolute;
+            pointer-events: none;
+            font-size: 1.5em;
+            animation: particle 1s ease-out forwards;
+        }
+        @keyframes particle {
+            0% { transform: translate(0, 0) scale(1); opacity: 1; }
+            100% { transform: translate(var(--tx), var(--ty)) scale(0); opacity: 0; }
+        }
+        .ripple {
+            position: absolute;
+            border: 2px solid;
+            border-radius: 50%;
+            pointer-events: none;
+            animation: ripple 0.6s ease-out forwards;
+        }
+        @keyframes ripple {
+            0% { width: 10px; height: 10px; opacity: 1; }
+            100% { width: 100px; height: 100px; opacity: 0; }
+        }
+        .pulse { animation: pulse 0.5s; }
+        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+        @media (max-width: 768px) { .main-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>✨ Stress Constellations</h1>
+            <p class="tagline">Turn your stress into stars</p>
+        </header>
+        <div class="stats" id="stats">
+            <div class="stat-card"><div class="stat-value">0</div><div class="stat-label">Total Stars</div></div>
+            <div class="stat-card"><div class="stat-value">0</div><div class="stat-label">Avg Stress</div></div>
+            <div class="stat-card"><div class="stat-value">-</div><div class="stat-label">Current Mood</div></div>
+        </div>
+        <div class="main-grid">
+            <div class="sidebar">
+                <h3 style="text-align: center; margin-bottom: 20px; color: #a8b2ff;">How are you feeling?</h3>
+                <div class="mood-picker">
+                    <div class="mood-btn active" data-m="calm">😌</div>
+                    <div class="mood-btn" data-m="anxiety">😰</div>
+                    <div class="mood-btn" data-m="pressure">😤</div>
+                    <div class="mood-btn" data-m="fatigue">😴</div>
+                    <div class="mood-btn" data-m="overwhelm">🤯</div>
+                    <div class="mood-btn" data-m="anger">😠</div>
+                </div>
+                <div class="slider-container">
+                    <label style="display: block; text-align: center; margin-bottom: 10px; color: #b4b8d4;">Stress Level</label>
+                    <input type="range" class="slider" id="s" min="1" max="10" value="5">
+                    <div class="stress-display">
+                        <div class="stress-emoji" id="e">😐</div>
+                        <div class="stress-value"><span id="v">5</span>/10</div>
+                    </div>
+                </div>
+                <button onclick="add()">✨ Add Star</button>
+            </div>
+            <div class="canvas-area">
+                <canvas id="c"></canvas>
+                <div class="tooltip" id="t">
+                    <div style="font-size: 2em; margin-bottom: 5px;" id="te"></div>
+                    <div style="color: #a8b2ff; font-weight: 600;" id="tm"></div>
+                    <div style="font-size: 1.5em; margin: 5px 0;" id="ts"></div>
+                    <div style="font-size: 0.9em; color: #b4b8d4;" id="tt"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="achievement" id="a"></div>
+    <script>
+        const C={calm:'#00d2d3',anxiety:'#ff6b9d',pressure:'#ffa07a',anger:'#ff4757',fatigue:'#a29bfe',overwhelm:'#fd79a8'};
+        const E={calm:'😌',anxiety:'😰',pressure:'😤',anger:'😠',fatigue:'😴',overwhelm:'🤯'};
+        const SE=['😊','😊','🙂','🙂','😐','😐','😕','😰','😱','🤯'];
+        let st=[],m='calm',cv,cx,h=null,sel=null;
+        
+        window.onload=()=>{
+            cv=c;cx=cv.getContext('2d');
+            cv.width=cv.offsetWidth;cv.height=cv.offsetHeight;
+            
+            document.querySelectorAll('.mood-btn').forEach(b=>b.onclick=function(){
+                document.querySelectorAll('.mood-btn').forEach(x=>x.classList.remove('active'));
+                this.classList.add('active','pulse');
+                setTimeout(()=>this.classList.remove('pulse'),500);
+                m=this.dataset.m;
+            });
+            
+            s.oninput=function(){
+                v.textContent=this.value;
+                e.textContent=SE[this.value-1];
+                e.classList.add('pulse');
+                setTimeout(()=>e.classList.remove('pulse'),500);
+            };
+            
+            cv.onmousemove=hov;
+            cv.onclick=clk;
+            ani();
+            sample();
+        };
+        
+        function add(){
+            const sv=parseInt(s.value);
+            st.push({
+                x:Math.random()*(cv.width-100)+50,
+                y:cv.height-(sv/10)*(cv.height-100)-50,
+                sz:Math.random()*3+3,
+                m:m,
+                s:sv,
+                t:new Date(),
+                tw:Math.random()*Math.PI*2,
+                sc:0
+            });
+            const n=st[st.length-1];
+            let g=0;
+            const iv=setInterval(()=>{
+                g+=0.1;
+                n.sc=Math.min(g,1);
+                if(g>=1)clearInterval(iv);
+            },20);
+            upd();
+            part(n.x,n.y,C[m]);
+            if(st.length===1)ach('🌟 First Star!');
+            if(st.length===5)ach('🌌 5 Stars!');
+            if(st.length===10)ach('✨ 10 Stars!');
+            if(sv<=3)ach('😌 Zen Master!');
+        }
+        
+        function sample(){
+            const ms=['calm','anxiety','pressure','fatigue'];
+            for(let i=0;i<8;i++){
+                m=ms[Math.floor(Math.random()*ms.length)];
+                s.value=Math.floor(Math.random()*7)+3;
+                add();
+            }
+            m='calm';upd();
+        }
+        
+        function ani(){
+            cx.clearRect(0,0,cv.width,cv.height);
+            st.forEach((st,i)=>{
+                st.tw+=0.05;
+                const tw=Math.sin(st.tw)*0.3+1;
+                const sz=st.sz*tw*(st.sc||1);
+                const hi=h===i||sel===i;
+                const gs=hi?sz*6:sz*4;
+                const go=hi?'80':'60';
+                const gr=cx.createRadialGradient(st.x,st.y,0,st.x,st.y,gs);
+                gr.addColorStop(0,C[st.m]+go);
+                gr.addColorStop(1,C[st.m]+'00');
+                cx.fillStyle=gr;
+                cx.fillRect(st.x-gs,st.y-gs,gs*2,gs*2);
+                cx.fillStyle=C[st.m];
+                cx.beginPath();
+                cx.arc(st.x,st.y,sz,0,Math.PI*2);
+                cx.fill();
+                if(sel===i){
+                    cx.strokeStyle=C[st.m];
+                    cx.lineWidth=2;
+                    cx.beginPath();
+                    cx.arc(st.x,st.y,sz*3+Math.sin(Date.now()/200)*3,0,Math.PI*2);
+                    cx.stroke();
+                }
+            });
+            st.forEach((s1,i)=>{
+                st.slice(i+1).forEach(s2=>{
+                    const d=Math.sqrt(Math.pow(s1.x-s2.x,2)+Math.pow(s1.y-s2.y,2));
+                    if(d<150&&s1.m===s2.m){
+                        cx.strokeStyle=C[s1.m]+'30';
+                        cx.lineWidth=1;
+                        cx.beginPath();
+                        cx.moveTo(s1.x,s1.y);
+                        cx.lineTo(s2.x,s2.y);
+                        cx.stroke();
+                    }
+                });
+            });
+            requestAnimationFrame(ani);
+        }
+        
+        function hov(e){
+            const r=cv.getBoundingClientRect();
+            const x=e.clientX-r.left,y=e.clientY-r.top;
+            let f=null;
+            st.forEach((s,i)=>{
+                const d=Math.sqrt(Math.pow(x-s.x,2)+Math.pow(y-s.y,2));
+                if(d<s.sz*3)f={s,i};
+            });
+            h=f?f.i:null;
+            cv.className=f?'hover':'';
+            if(f){
+                te.textContent=E[f.s.m];
+                tm.textContent=f.s.m.charAt(0).toUpperCase()+f.s.m.slice(1);
+                ts.textContent=`Stress: ${f.s.s}/10`;
+                tt.textContent=f.s.t.toLocaleTimeString();
+                t.style.left=(e.clientX+15)+'px';
+                t.style.top=(e.clientY+15)+'px';
+                t.classList.add('show');
+            }else t.classList.remove('show');
+        }
+        
+        function clk(e){
+            const r=cv.getBoundingClientRect();
+            const x=e.clientX-r.left,y=e.clientY-r.top;
+            let f=null;
+            st.forEach((s,i)=>{
+                const d=Math.sqrt(Math.pow(x-s.x,2)+Math.pow(y-s.y,2));
+                if(d<s.sz*3)f={s,i};
+            });
+            if(f){
+                sel=f.i;
+                rip(f.s.x,f.s.y,C[f.s.m]);
+                part(f.s.x,f.s.y,C[f.s.m]);
+                snd();
+                const msg=['✨ Star selected!','🌟 Nice!','💫 Good one!','⭐ Star power!'];
+                ach(msg[Math.floor(Math.random()*msg.length)]);
+            }else sel=null;
+        }
+        
+        function part(x,y,c){
+            const r=cv.getBoundingClientRect();
+            for(let i=0;i<8;i++){
+                const p=document.createElement('div');
+                p.className='particle';
+                p.textContent='✨';
+                p.style.left=(r.left+x)+'px';
+                p.style.top=(r.top+y)+'px';
+                p.style.color=c;
+                const a=(Math.PI*2*i)/8;
+                const d=50;
+                p.style.setProperty('--tx',Math.cos(a)*d+'px');
+                p.style.setProperty('--ty',Math.sin(a)*d+'px');
+                document.body.appendChild(p);
+                setTimeout(()=>p.remove(),1000);
+            }
+        }
+        
+        function rip(x,y,c){
+            const r=cv.getBoundingClientRect();
+            const rp=document.createElement('div');
+            rp.className='ripple';
+            rp.style.left=(r.left+x-5)+'px';
+            rp.style.top=(r.top+y-5)+'px';
+            rp.style.borderColor=c;
+            document.body.appendChild(rp);
+            setTimeout(()=>rp.remove(),600);
+        }
+        
+        function snd(){
+            const ac=new(window.AudioContext||window.webkitAudioContext)();
+            const o=ac.createOscillator();
+            const g=ac.createGain();
+            o.connect(g);
+            g.connect(ac.destination);
+            o.frequency.value=600;
+            o.type='sine';
+            g.gain.value=0.1;
+            o.start();
+            g.gain.exponentialRampToValueAtTime(0.01,ac.currentTime+0.2);
+            o.stop(ac.currentTime+0.2);
+        }
+        
+        function upd(){
+            const tot=st.length;
+            const avg=tot>0?(st.reduce((s,x)=>s+x.s,0)/tot).toFixed(1):0;
+            const mc={};
+            st.forEach(s=>mc[s.m]=(mc[s.m]||0)+1);
+            const top=Object.keys(mc).reduce((a,b)=>mc[a]>mc[b]?a:b,'-');
+            document.querySelectorAll('.stat-value')[0].textContent=tot;
+            document.querySelectorAll('.stat-value')[1].textContent=avg;
+            document.querySelectorAll('.stat-value')[2].textContent=top!=='-'?E[top]:'-';
+        }
+        
+        function ach(tx){
+            a.textContent=tx;
+            a.classList.add('show');
+            setTimeout(()=>a.classList.remove('show'),3000);
+        }
+        
+        window.onresize=()=>{
+            cv.width=cv.offsetWidth;
+            cv.height=cv.offsetHeight;
+        };
+    </script>
+</body>
+</html>
